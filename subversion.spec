@@ -38,6 +38,13 @@
 %global use_systemd         0
 %endif
 
+# needed on rhel6 scl-utils 20120927-23, plus filter out libs.
+%{?scl:
+%filter_from_provides s|pkgconfig|%{?scl_prefix}pkgconfig|g;s|libsvn.*\.so.*||g;s|mod_.*||g;s|perl.*||g;s|.*\.so.*||g;s|libtool.*||g;s|osgi(org.apache.subversion.javahl)||g
+%filter_from_requires s|pkgconfig|%{?scl_prefix}pkgconfig|g;s|libsvn.*\.so.*||g;s|mod_.*||g;s|perl.*||g;s|.*\.so.*||g;s|libtool.*||g;s|osgi(org.apache.subversion.javahl)||g
+%filter_setup
+}
+
 Summary: A Modern Concurrent Version Control System
 Name: %{?scl_prefix}subversion
 Version: 1.9.3
@@ -53,6 +60,10 @@ Source5: psvn-init.el
 Source6: svnserve.service
 Source7: svnserve.tmpfiles
 Source8: svnserve.sysconf
+Source100: svnserve.init
+Source101: sclo-subversion19-svnserve.init
+Source102: sclo-subversion19-svnserve.service
+Source103: svnserve-scl-wrapper
 Patch1: subversion-1.9.0-rpath.patch
 Patch2: subversion-1.9.0-pie.patch
 Patch3: subversion-1.9.0-kwallet.patch
@@ -389,15 +400,32 @@ for comp in svnadmin svndumpfilter svnlook svnsync svnversion; do
 done
 
 # Install svnserve bits
-mkdir -p %{buildroot}%{_unitdir} \
-      %{buildroot}/run/svnserve \
+mkdir -p 
+%if %{use_systemd}
+      %{buildroot}%{_unitdir} \
+%else
+      %{buildroot}%{_initdir} \
+%endif
+%if %{?rhel} >= 7
+      %{buildroot}/run/%{?scl_prefix}svnserve \
       %{buildroot}%{_prefix}/lib/tmpfiles.d \
+%else
+      %{buildroot}/var/run/%{?scl_prefix}svnserve \
+%endif
       %{buildroot}%{_sysconfdir}/sysconfig
 
+%if %{use_systemd}
 install -p -m 644 $RPM_SOURCE_DIR/svnserve.service \
-        %{buildroot}%{_unitdir}/svnserve.service
+        %{buildroot}%{_unitdir}/%{?scl_prefix}svnserve.service
+%else
+install -p -m 644 $RPM_SOURCE_DIR/%{?scl_prefix}svnserve.init \
+        %{buildroot}%{_initdir}/%{?scl_prefix}svnserve
+%endif
+
+%if %{?rhel} >= 7
 install -p -m 644 $RPM_SOURCE_DIR/svnserve.tmpfiles \
         %{buildroot}%{_prefix}/lib/tmpfiles.d/svnserve.conf
+%endif
 install -p -m 644 $RPM_SOURCE_DIR/svnserve.sysconf \
         %{buildroot}%{_sysconfdir}/sysconfig/svnserve
 
@@ -492,9 +520,14 @@ fi
 %config(noreplace) %{_sysconfdir}/sysconfig/svnserve
 %dir %{_sysconfdir}/subversion
 %exclude %{_mandir}/man*/*::*
+%if %{use_systemd}
 %{_unitdir}/*.service
-%attr(0700,root,root) %dir /run/svnserve
+%attr(0700,root,root) %dir /run/%{?scl_prefix}svnserve
 %{_prefix}/lib/tmpfiles.d/svnserve.conf
+%else
+%{_initdir}/*
+%attr(0700,root,root) %dir /var/run/%{?scl_prefix}svnserve
+%endif
 
 %files tools -f tools.files
 
