@@ -40,8 +40,8 @@
 
 # needed on rhel6 scl-utils 20120927-23, plus filter out libs.
 %{?scl:
-%filter_from_provides s|pkgconfig|%{?scl_prefix}pkgconfig|g;s|libsvn.*\.so.*||g;s|mod_.*||g;s|perl.*||g;s|.*\.so.*||g;s|libtool.*||g;s|osgi(org.apache.subversion.javahl)||g
-%filter_from_requires s|pkgconfig|%{?scl_prefix}pkgconfig|g;s|libsvn.*\.so.*||g;s|mod_.*||g;s|perl.*||g;s|.*\.so.*||g;s|libtool.*||g;s|osgi(org.apache.subversion.javahl)||g
+%filter_from_provides s|pkgconfig|%{?scl_prefix}pkgconfig|g;s|libsvn.*\.so.*||g;s|mod_.*||g;s|perl.*||g;s|.*\.so.*||g;s|libtool.*||g;s|osgi\(org.apache.subversion.javahl\)||g
+%filter_from_requires s|pkgconfig|%{?scl_prefix}pkgconfig|g;s|libsvn.*\.so.*||g;s|mod_.*||g;s|perl.*||g;s|.*\.so.*||g;s|libtool.*||g;s|osgi\(org.apache.subversion.javahl\)||g
 %filter_setup
 }
 
@@ -400,13 +400,13 @@ for comp in svnadmin svndumpfilter svnlook svnsync svnversion; do
 done
 
 # Install svnserve bits
-mkdir -p 
+mkdir -p \
 %if %{use_systemd}
       %{buildroot}%{_unitdir} \
 %else
       %{buildroot}%{_initdir} \
 %endif
-%if %{?rhel} >= 7
+%if 0%{?fedora} >= 19 || 0%{?rhel} >= 7
       %{buildroot}/run/%{?scl_prefix}svnserve \
       %{buildroot}%{_prefix}/lib/tmpfiles.d \
 %else
@@ -415,14 +415,14 @@ mkdir -p
       %{buildroot}%{_sysconfdir}/sysconfig
 
 %if %{use_systemd}
-install -p -m 644 $RPM_SOURCE_DIR/svnserve.service \
+install -p -m 644 $RPM_SOURCE_DIR/%{?scl_prefix}svnserve.service \
         %{buildroot}%{_unitdir}/%{?scl_prefix}svnserve.service
 %else
 install -p -m 644 $RPM_SOURCE_DIR/%{?scl_prefix}svnserve.init \
         %{buildroot}%{_initdir}/%{?scl_prefix}svnserve
 %endif
 
-%if %{?rhel} >= 7
+%if 0%{?fedora} >= 19 || 0%{?rhel} >= 7
 install -p -m 644 $RPM_SOURCE_DIR/svnserve.tmpfiles \
         %{buildroot}%{_prefix}/lib/tmpfiles.d/svnserve.conf
 %endif
@@ -520,13 +520,16 @@ fi
 %config(noreplace) %{_sysconfdir}/sysconfig/svnserve
 %dir %{_sysconfdir}/subversion
 %exclude %{_mandir}/man*/*::*
-%if %{use_systemd}
-%{_unitdir}/*.service
+%if 0%{?fedora} >= 19 || 0%{?rhel} >= 7
 %attr(0700,root,root) %dir /run/%{?scl_prefix}svnserve
+%else
+%attr(0700,root,root) %dir /var/run/%{?scl_prefix}svnserve
+%endif
+%if %{use_systemd}
+%{_unitdir}/%{?scl_prefix}*.service
 %{_prefix}/lib/tmpfiles.d/svnserve.conf
 %else
-%{_initdir}/*
-%attr(0700,root,root) %dir /var/run/%{?scl_prefix}svnserve
+%{_initdir}/%{?scl_prefix}svnserve
 %endif
 
 %files tools -f tools.files
