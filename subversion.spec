@@ -79,11 +79,12 @@ Patch4: subversion-1.8.0-rubybind.patch
 Patch8: subversion-1.8.5-swigplWall.patch
 Patch10: subversion-1.8.13-swigpython.patch
 Patch11: subversion-1.8.11-ruby22-fixes.rb
-BuildRequires: autoconf, libtool, python, python-devel, texinfo, which
+BuildRequires: autoconf, libtool, texinfo, which
 BuildRequires: perl
 %if 0%{?rhel} >= 7 || 0%{?fedora} >= 19
 BuildRequires: libdb-devel >= 4.1.25
 BuildRequires: python-devel
+BuildRequires:  python, python-devel
 %else
 BuildRequires: db4-devel >= 4.1.25
 BuildRequires: python27-python-devel
@@ -151,6 +152,9 @@ used by the Subversion version control tools.
 %package python
 Group: Development/Libraries
 Summary: Python bindings for Subversion Version Control system
+%if %{?scl:1}0 && 0%{?rhel} < 7 
+Requires: python27-python 
+%endif
 
 %description python
 The subversion-python package includes the Python bindings to the
@@ -287,9 +291,8 @@ ln -s sqlite-amalgamation-3071501 sqlite-amalgamation
 . /opt/rh/python27/enable
 %endif
 
-%define swigdirs swig_pydir=%{?_scl_root}%{python_sitearch}/libsvn swig_pydir_extra=%{?_scl_root}%{python_sitearch}/svn
 %{!?python_sitearch: %define python_sitearch %(%{__python} -c "from distutils.sysconfig import get_python_lib; print get_python_lib(1)")}
-
+%define swigdirs swig_pydir=%{?_scl_root}%{python_sitearch}/libsvn swig_pydir_extra=%{?_scl_root}%{python_sitearch}/svn
 
 
 # Regenerate the buildsystem, so that:
@@ -394,6 +397,9 @@ make javahl
 . /opt/rh/ruby200/enable
 . /opt/rh/python27/enable
 %endif
+
+%{!?python_sitearch: %define python_sitearch %(%{__python} -c "from distutils.sysconfig import get_python_lib; print get_python_lib(1)")}
+%define swigdirs swig_pydir=%{?_scl_root}%{python_sitearch}/libsvn swig_pydir_extra=%{?_scl_root}%{python_sitearch}/svn
 
 make install install-swig-py install-swig-pl-lib install-swig-rb \
         DESTDIR=$RPM_BUILD_ROOT %{swigdirs}
