@@ -17,8 +17,13 @@
 
 %define perl_vendorarch %(eval "`%{__perl} -V:installvendorarch`"; echo $installvendorarch)
 
-# moved to build - scl !
-#{!?python_sitearch: %define python_sitearch %(%{__python} -c "from distutils.sysconfig import get_python_lib; print get_python_lib(1)")}
+%if %{?scl:1}0 && ( 0%{?rhel} < 7 || 0%{?fedora} < 19 )
+#fugly .. but collection not enabled here yet ..
+%define python_sitearch %(LD_LIBRARY_PATH=/opt/rh/python27/root/usr/%{_lib}/ /opt/rh/python27/root/usr/bin/python -c "from distutils.sysconfig import get_python_lib; print get_python_lib(1)")}
+%else
+%{!?python_sitearch: %define python_sitearch %(%{__python} -c "from distutils.sysconfig import get_python_lib; print get_python_lib(1)")}
+%endif
+%define swigdirs swig_pydir=%{python_sitearch}/libsvn swig_pydir_extra=%{python_sitearch}/svn
 
 
 %if 0%{?scl:1}
@@ -46,9 +51,13 @@
 
 # needed on rhel6 scl-utils 20120927-23, plus filter out libs.
 %{?scl:
+%if 0%{?rhel} >= 7 || 0%{?fedora} >= 19
+%filter_from_provides s|pkgconfig|%{?scl_prefix}pkgconfig|g;s|libsvn.*\.so.*||g;s|mod_.*||g;s|perl.*||g;s|libtool.*||g;s|.*org\.apache\.subversion\.javahl.*||g;
+%filter_from_requires s|pkgconfig|%{?scl_prefix}pkgconfig|g;s|libsvn.*\.so.*||g;s|mod_.*||g;s|perl.*||g;s|libtool.*||g;s|.*org\.apache\.subversion\.javahl.*||g;
+%else
 %filter_from_provides s|pkgconfig|%{?scl_prefix}pkgconfig|g;s|libsvn.*\.so.*||g;s|mod_.*||g;s|perl.*||g;s|libruby.*\.so.*||g;s|libtool.*||g;s|.*org\.apache\.subversion\.javahl.*||g;
 %filter_from_requires s|pkgconfig|%{?scl_prefix}pkgconfig|g;s|libsvn.*\.so.*||g;s|mod_.*||g;s|perl.*||g;s|libruby.*\.so.*||g;s|libtool.*||g;s|.*org\.apache\.subversion\.javahl.*||g;
-
+%endif
 %filter_setup
 }
 
@@ -122,10 +131,6 @@ Provides: %{?scl_prefix}svn = %{version}-%{release}
 Requires: %{?scl_prefix}subversion-libs%{?_isa} = %{version}-%{release}
 
 %define __perl_requires %{SOURCE3}
-
-# Put Python bindings in site-packages
-# moved to build -> scl !
-#define swigdirs swig_pydir=%{?_scl_root}%{python_sitearch}/libsvn swig_pydir_extra=%{?_scl_root}%{python_sitearch}/svn
 
 %description
 Subversion is a concurrent version control system which enables one
@@ -291,10 +296,6 @@ ln -s sqlite-amalgamation-3071501 sqlite-amalgamation
 . /opt/rh/python27/enable
 %endif
 
-%{!?python_sitearch: %define python_sitearch %(%{__python} -c "from distutils.sysconfig import get_python_lib; print get_python_lib(1)")}
-%define swigdirs swig_pydir=%{?_scl_root}%{python_sitearch}/libsvn swig_pydir_extra=%{?_scl_root}%{python_sitearch}/svn
-
-
 # Regenerate the buildsystem, so that:
 #  1) patches applied to configure.in take effect
 #  2) the swig bindings are regenerated using the system swig
@@ -397,9 +398,6 @@ make javahl
 . /opt/rh/ruby200/enable
 . /opt/rh/python27/enable
 %endif
-
-%{!?python_sitearch: %define python_sitearch %(%{__python} -c "from distutils.sysconfig import get_python_lib; print get_python_lib(1)")}
-%define swigdirs swig_pydir=%{?_scl_root}%{python_sitearch}/libsvn swig_pydir_extra=%{?_scl_root}%{python_sitearch}/svn
 
 make install install-swig-py install-swig-pl-lib install-swig-rb \
         DESTDIR=$RPM_BUILD_ROOT %{swigdirs}
