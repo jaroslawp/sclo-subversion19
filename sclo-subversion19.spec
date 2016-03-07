@@ -12,8 +12,7 @@
 
 Summary: Package that installs %scl
 Name: %scl_name
-# should match the RHSCL version
-Version: 1.0
+Version: 1.1
 Release: 1%{?dist}
 Group: Applications/File
 Source0: README
@@ -21,16 +20,16 @@ Source1: LICENSE
 License: GPLv2+
 Requires: scl-utils
 %if 0%{?install_scl}
-Requires: %{scl_prefix}git
+Requires: %{scl_prefix}subversion
 %endif
 BuildRequires: scl-utils-build, help2man
 
 %description
 This is the main package for %scl Software Collection, which install
-the necessary packages to use subversion-1.9.0. Software collections 
+the necessary packages to use subversion-1.9.X. Software collections 
 allow to install more versions of the same package by using an 
 alternative directory structure.
-Install this package if you want to use subversion-1.9.0 on your system.
+Install this package if you want to use subversion-1.9.X on your system.
 
 %package runtime
 Summary: Package that handles %scl Software Collection.
@@ -89,6 +88,9 @@ rm -rf %{buildroot}
 mkdir -p %{buildroot}%{_scl_scripts}/root
 cat >> %{buildroot}%{_scl_scripts}/enable << EOF
 export PATH=%{_bindir}\${PATH:+:\${PATH}}
+export LIBRARY_PATH=%{_libdir}\${LIBRARY_PATH:+:\${LIBRARY_PATH}}
+export LD_LIBRARY_PATH=%{_libdir}\${LD_LIBRARY_PATH:+:\${LD_LIBRARY_PATH}}
+export PKG_CONFIG_PATH=%{_libdir}/pkgconfig\${PKG_CONFIG_PATH:+:\${PKG_CONFIG_PATH}}
 export MANPATH=%{_mandir}:\${MANPATH}
 EOF
 
@@ -105,14 +107,10 @@ cat >> %{buildroot}%{_root_sysconfdir}/rpm/macros.%{scl_name_base}-scldevel << E
 EOF
 
 %post runtime
-# Simple copy of context from system root to DSC root.
-# In case new version needs some additional rules or context definition,
-# it needs to be solved.
-#semanage fcontext -a -e /usr/libexec/git-core/git-daemon /usr/libexec/git-core/%{scl_prefix}git-daemon >/dev/null 2>&1 || :
-#semanage fcontext -a -e / %{_scl_root} >/dev/null 2>&1 || :
-# T.B.D.
-selinuxenabled && load_policy >/dev/null 2>&1 || :
-restorecon -R %{_scl_root} >/dev/null 2>&1 || :
+# Simple copy of context from system root to SC root.
+semanage fcontext -a -e / /opt/rh/%{scl_name}/root >/dev/null 2>&1 || :
+selinuxenabled && load_policy || :
+restorecon -R /opt/rh/%{scl_name}/root >/dev/null 2>&1 || :
 
 %files
 
@@ -128,6 +126,9 @@ restorecon -R %{_scl_root} >/dev/null 2>&1 || :
 %{_root_sysconfdir}/rpm/macros.%{scl_name_base}-scldevel
 
 %changelog
+* Mon Mar 07 2016 Jaroslaw Polok <jaroslaw.polok@cern.ch> 1.1
+- adding LD_LIBRARY_PATH, selinux context mgmt.
+
 * Sat Mar 05 2016 Jaroslaw Polok <jaroslaw.polok@cern.ch> 1.0
 - initial spec for subversion19
 
