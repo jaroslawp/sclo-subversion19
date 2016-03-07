@@ -2,7 +2,12 @@
 %{!?scl:%global pkg_name %{name}}
 
 # set to zero to avoid running test suite
+%if %{?scl:1}0 && ( 0%{?rhel} < 7 || 0%{?fedora} < 19 )
+# we miss too many pkgs on 6 for tests
 %define make_check 0 
+%else
+%define make_check 1
+%endif
 
 %define with_java 1
 %define with_kwallet 1
@@ -12,7 +17,8 @@
 
 %define perl_vendorarch %(eval "`%{__perl} -V:installvendorarch`"; echo $installvendorarch)
 
-%{!?python_sitearch: %define python_sitearch %(%{__python} -c "from distutils.sysconfig import get_python_lib; print get_python_lib(1)")}
+# moved to build - scl !
+#{!?python_sitearch: %define python_sitearch %(%{__python} -c "from distutils.sysconfig import get_python_lib; print get_python_lib(1)")}
 
 
 %if 0%{?scl:1}
@@ -40,8 +46,9 @@
 
 # needed on rhel6 scl-utils 20120927-23, plus filter out libs.
 %{?scl:
-%filter_from_provides s|pkgconfig|%{?scl_prefix}pkgconfig|g;s|libsvn.*\.so.*||g;s|mod_.*||g;s|perl.*||g;s|.*\.so.*||g;s|libtool.*||g;s|osgi\(org.apache.subversion.javahl\)||g
-%filter_from_requires s|pkgconfig|%{?scl_prefix}pkgconfig|g;s|libsvn.*\.so.*||g;s|mod_.*||g;s|perl.*||g;s|.*\.so.*||g;s|libtool.*||g;s|osgi\(org.apache.subversion.javahl\)||g
+%filter_from_provides s|pkgconfig|%{?scl_prefix}pkgconfig|g;s|libsvn.*\.so.*||g;s|mod_.*||g;s|perl.*||g;s|libruby.*\.so.*||g;s|libtool.*||g;s|.*org\.apache\.subversion\.javahl.*||g;
+%filter_from_requires s|pkgconfig|%{?scl_prefix}pkgconfig|g;s|libsvn.*\.so.*||g;s|mod_.*||g;s|perl.*||g;s|libruby.*\.so.*||g;s|libtool.*||g;s|.*org\.apache\.subversion\.javahl.*||g;
+
 %filter_setup
 }
 
@@ -64,6 +71,7 @@ Source100: svnserve.init
 Source101: sclo-subversion19-svnserve.init
 Source102: sclo-subversion19-svnserve.service
 Source103: svnserve-scl-wrapper
+Source104: http://www.sqlite.org/sqlite-amalgamation-3071501.zip
 Patch1: subversion-1.9.0-rpath.patch
 Patch2: subversion-1.9.0-pie.patch
 Patch3: subversion-1.9.0-kwallet.patch
@@ -72,12 +80,31 @@ Patch8: subversion-1.8.5-swigplWall.patch
 Patch10: subversion-1.8.13-swigpython.patch
 Patch11: subversion-1.8.11-ruby22-fixes.rb
 BuildRequires: autoconf, libtool, python, python-devel, texinfo, which
-BuildRequires: libdb-devel >= 4.1.25, swig >= 1.3.24, gettext
+BuildRequires: perl
+%if 0%{?rhel} >= 7 || 0%{?fedora} >= 19
+BuildRequires: libdb-devel >= 4.1.25
+BuildRequires: python-devel
+%else
+BuildRequires: db4-devel >= 4.1.25
+BuildRequires: python27-python-devel
+BuildRequires: python27-build
+%endif
+BuildRequires: swig >= 1.3.24, gettext
 BuildRequires: apr-devel >= 1.3.0, apr-util-devel >= 1.3.0
-BuildRequires: libserf-devel >= 1.3.0, cyrus-sasl-devel
-BuildRequires: sqlite-devel >= 3.4.0, file-devel, systemd-units
+%if 0%{?rhel} >= 7 || 0%{?fedora} >= 19
+BuildRequires: libserf-devel >= 1.3.0
+%else
+BuildRequires: libserf-devel >= 1.2.1
+%endif
+BuildRequires: cyrus-sasl-devel
+BuildRequires: sqlite-devel >= 3.4.0, file-devel
+%if %{use_systemd}
+BuildRequires: systemd-units
+%endif
+%if 0%{?rhel} >= 7 || 0%{?fedora} >= 19
 # Any apr-util crypto backend needed
 BuildRequires: apr-util-openssl
+%endif
 
 %if %{use_systemd}
 # For systemctl scriptlets
@@ -96,7 +123,8 @@ Requires: %{?scl_prefix}subversion-libs%{?_isa} = %{version}-%{release}
 %define __perl_requires %{SOURCE3}
 
 # Put Python bindings in site-packages
-%define swigdirs swig_pydir=%{?_scl_root}%{python_sitearch}/libsvn swig_pydir_extra=%{?_scl_root}%{python_sitearch}/svn
+# moved to build -> scl !
+#define swigdirs swig_pydir=%{?_scl_root}%{python_sitearch}/libsvn swig_pydir_extra=%{?_scl_root}%{python_sitearch}/svn
 
 %description
 Subversion is a concurrent version control system which enables one
@@ -111,8 +139,10 @@ Group: Development/Tools
 Summary: Libraries for Subversion Version Control system
 # APR 1.3.x interfaces are required
 Conflicts: apr%{?_isa} < 1.3.0
+%if 0%{?rhel} >= 7 || 0%{?fedora} >= 19
 # Enforced at run-time by ra_serf
 Conflicts: libserf%{?_isa} < 1.3.0
+%endif
 
 %description libs
 The subversion-libs package includes the essential shared libraries
@@ -140,7 +170,12 @@ for developers interacting with the subversion package.
 Group: Development/Tools
 Summary: GNOME Keyring support for Subversion
 Requires: %{?scl_prefix}subversion%{?_isa} = %{version}-%{release}
-BuildRequires: libgnome-keyring-devel, dbus-devel
+%if 0%{?rhel} >= 7 || 0%{?fedora} >= 19
+BuildRequires: libgnome-keyring-devel
+%else
+BuildRequires: gnome-keyring-devel
+%endif
+BuildRequires: dbus-devel
 
 %description gnome
 The subversion-gnome package adds support for storing Subversion
@@ -206,10 +241,17 @@ This package includes the JNI bindings to the Subversion libraries.
 %package ruby
 Group: Development/Libraries
 Summary: Ruby bindings to the Subversion libraries
+%if %{?scl:1}0 && 0%{?rhel} < 7
+BuildRequires: ruby200-ruby-devel >= 2.0.0
+BuildRequires: ruby200-build
+Requires: ruby200-ruby-libs >= 2.0.0
+# and we miss rubygem-test-unit for that .. so no tests ...
+%else
 BuildRequires: ruby-devel >= 1.9.1, ruby >= 1.9.1
 BuildRequires: rubygem(test-unit)
-Requires: %{?scl_prefix}subversion%{?_isa} = %{version}-%{release}
 Conflicts: ruby-libs%{?_isa} < 1.8.2
+%endif
+Requires: %{?scl_prefix}subversion%{?_isa} = %{version}-%{release}
 
 %description ruby
 This package includes the Ruby bindings to the Subversion libraries.
@@ -223,7 +265,13 @@ Requires: subversion%{?_isa} = %{version}-%{release}
 This package includes supplementary tools for use with Subversion.
 
 %prep
-%setup -q -n %{pkg_name}-%{version}
+%if 0%{?rhel} >= 7 || 0%{?fedora} >= 19
+%setup -q -n %{pkg_name}-%{version} 
+%else
+%setup -q -n %{pkg_name}-%{version} -a 104
+ln -s sqlite-amalgamation-3071501 sqlite-amalgamation
+%endif
+
 %patch1 -p1 -b .rpath
 %patch2 -p1 -b .pie
 %patch3 -p1 -b .kwallet
@@ -233,6 +281,17 @@ This package includes supplementary tools for use with Subversion.
 %patch11 -p0 -b .ruby22-fixes
 
 %build
+
+%if %{?scl:1}0 && 0%{?rhel} < 7
+. /opt/rh/ruby200/enable
+. /opt/rh/python27/enable
+%endif
+
+%define swigdirs swig_pydir=%{?_scl_root}%{python_sitearch}/libsvn swig_pydir_extra=%{?_scl_root}%{python_sitearch}/svn
+%{!?python_sitearch: %define python_sitearch %(%{__python} -c "from distutils.sysconfig import get_python_lib; print get_python_lib(1)")}
+
+
+
 # Regenerate the buildsystem, so that:
 #  1) patches applied to configure.in take effect
 #  2) the swig bindings are regenerated using the system swig
@@ -240,6 +299,15 @@ This package includes supplementary tools for use with Subversion.
 # swig version
 # This PATH order makes the fugly test for libtoolize work...
 mv build-outputs.mk build-outputs.mk.old
+
+
+%if 0%{?rhel} < 7
+# for autogen.sh
+export PYTHON=/opt/rh/python27/root/usr/bin/python
+# for configure .. does not work ..
+export LDFLAGS="-L/opt/rh/ruby200/root/usr/%{_lib}/"
+%endif
+
 PATH=/usr/bin:$PATH ./autogen.sh --release
 
 # fix shebang lines, #111498
@@ -252,6 +320,7 @@ export svn_cv_ruby_sitedir_archsuffix=""
 
 export EXTRA_CFLAGS="$RPM_OPT_FLAGS -DSVN_SQLITE_MIN_VERSION_NUMBER=3007012 \
        -DSVN_SQLITE_MIN_VERSION=\\\"3.7.12\\\""
+
 export APACHE_LDFLAGS="-Wl,-z,relro,-z,now"
 export CC=gcc CXX=g++ JAVA_HOME=%{jdk_path}
 
@@ -271,13 +340,17 @@ export PERL5LIB=""
 export PERL_MB_OPT=""
 export PERL_LOCAL_LIB_ROOT=""
 export PERL_MM_OPT=""
-#perl -p -i -e 's#Makefile.PL PREFIX=\$\(prefix\)#Makefile.PL INSTALL_BASE=\$\(prefix\)#' Makefile
 %endif
 
 
 %configure --with-apr=%{svn_prefix} --with-apr-util=%{svn_prefix} \
         --disable-debug \
-        --with-swig --with-serf=%{svn_prefix} \
+        --with-swig \
+%if 0%{?rhel} >= 7 || 0%{?fedora} >= 19
+	--with-serf=%{svn_prefix} \
+#%else
+#        --enable-sqlite-compatibility-version=3.6.20 \
+%endif
         --with-ruby-sitedir=%{ruby_vendorarchdir} \
         --with-ruby-test-verbose=verbose \
 %if %{?scl:1}0
@@ -299,6 +372,12 @@ export PERL_MM_OPT=""
 %endif
         --with-berkeley-db || (cat config.log; exit 1)
 
+%if %{?scl:1}0 && 0%{?rhel} < 7
+## geee..  backwards compat ? ... difference between ruby 1.9.3 and 2.0.0 ..
+perl -p -i -e 's/ruby_errinfo/rb_errinfo/' subversion/bindings/swig/ruby/libsvn_swig_ruby/swigutil_rb.c
+## any *proper* way to do that ?
+perl -p -i -e 's#SWIG_RB_LIBS = -lruby#SWIG_RB_LIBS =-L/opt/rh/ruby200/root/usr/%{_lib}/ -lruby#' Makefile
+%endif
 
 make %{?_smp_mflags} all tools
 make swig-py swig-py-lib %{swigdirs}
@@ -310,6 +389,12 @@ make javahl
 %endif
 
 %install
+
+%if %{?scl:1}0 && 0%{?rhel} < 7
+. /opt/rh/ruby200/enable
+. /opt/rh/python27/enable
+%endif
+
 make install install-swig-py install-swig-pl-lib install-swig-rb \
         DESTDIR=$RPM_BUILD_ROOT %{swigdirs}
 %if %{with_java}
@@ -326,19 +411,18 @@ mkdir -p ${RPM_BUILD_ROOT}{%{_httpd24_modconfdir},%{_httpd24_confdir}}
 mkdir -p ${RPM_BUILD_ROOT}{%{_httpd_modconfdir},%{_httpd_confdir}}
 %endif
 
-%if %{?scl:1}0
+
 sed -n /^LoadModule/p %{SOURCE1} > 10-subversion.conf
 sed    /^LoadModule/d %{SOURCE1} > example.conf
 touch -r %{SOURCE1} 10-subversion.conf example.conf
+
+%if %{?scl:1}0
 install -p -m 644 10-subversion.conf ${RPM_BUILD_ROOT}%{_httpd24_modconfdir}
 %else
 %if "%{_httpd_modconfdir}" == "%{_httpd_confdir}"
 # httpd <= 2.2.x
 install -p -m 644 %{SOURCE1} ${RPM_BUILD_ROOT}%{_httpd_confdir}
 %else
-sed -n /^LoadModule/p %{SOURCE1} > 10-subversion.conf
-sed    /^LoadModule/d %{SOURCE1} > example.conf
-touch -r %{SOURCE1} 10-subversion.conf example.conf
 install -p -m 644 10-subversion.conf ${RPM_BUILD_ROOT}%{_httpd_modconfdir}
 %endif
 %endif
@@ -404,7 +488,7 @@ mkdir -p \
 %if %{use_systemd}
       %{buildroot}%{_unitdir} \
 %else
-      %{buildroot}%{_initdir} \
+      %{buildroot}%{_initddir} \
 %endif
 %if 0%{?fedora} >= 19 || 0%{?rhel} >= 7
       %{buildroot}/run/%{?scl_prefix}svnserve \
@@ -419,7 +503,7 @@ install -p -m 644 $RPM_SOURCE_DIR/%{?scl_prefix}svnserve.service \
         %{buildroot}%{_unitdir}/%{?scl_prefix}svnserve.service
 %else
 install -p -m 644 $RPM_SOURCE_DIR/%{?scl_prefix}svnserve.init \
-        %{buildroot}%{_initdir}/%{?scl_prefix}svnserve
+        %{buildroot}%{_initddir}/%{?scl_prefix}svnserve
 %endif
 
 %if 0%{?fedora} >= 19 || 0%{?rhel} >= 7
@@ -529,7 +613,7 @@ fi
 %{_unitdir}/%{?scl_prefix}*.service
 %{_prefix}/lib/tmpfiles.d/svnserve.conf
 %else
-%{_initdir}/%{?scl_prefix}svnserve
+%{_initddir}/%{?scl_prefix}svnserve
 %endif
 
 %files tools -f tools.files
@@ -597,6 +681,9 @@ fi
 %endif
 
 %changelog
+* Mon Mar 07 2016 Jaroslaw Polok <jaroslaw.polok@cern.ch> - 1.9.3
+- repackaged as Software Collection for CentOS 6/7
+
 * Tue Dec 15 2015 Joe Orton <jorton@redhat.com> - 1.9.3-1
 - update to 1.9.3 (#1291683)
 - use private /tmp in svnserve.service
