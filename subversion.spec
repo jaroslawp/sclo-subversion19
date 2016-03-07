@@ -636,6 +636,8 @@ fi
 %files python
 %if %{?scl:1}0 && 0%{?rhel} < 7
 # on 6 we put in python27 root
+%{python_sitearch}/svn
+%{python_sitearch}/libsvn
 %else
 # on 7 we do not want to put these in system path ..
 %{?_scl_root}%{python_sitearch}/svn
