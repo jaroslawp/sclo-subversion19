@@ -21,11 +21,13 @@
 # Source function library.
 . /etc/rc.d/init.d/functions
 
+# enable the collection
+. /opt/rh/sclo-subversion19/enable
+
 if [ -f /opt/rh/sclo-subversion19/root/etc/sysconfig/svnserve ]; then
         . /opt/rh/sclo-subversion19/root/etc/sysconfig/svnserve
 fi
 
-. /opt/rh/sclo-subversion19/enable
 
 exec=/opt/rh/sclo-subversion19/root/usr/bin/svnserve
 prog=svnserve
