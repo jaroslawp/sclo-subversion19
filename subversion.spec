@@ -17,11 +17,11 @@
 
 %define perl_vendorarch %(eval "`%{__perl} -V:installvendorarch`"; echo $installvendorarch)
 
-%if %{?scl:1}0 && ( 0%{?rhel} < 7 || 0%{?fedora} < 19 )
-#fugly .. but collection not enabled here yet ..
-%define python_sitearch %(LD_LIBRARY_PATH=/opt/rh/python27/root/usr/%{_lib}/ /opt/rh/python27/root/usr/bin/python -c "from distutils.sysconfig import get_python_lib; print get_python_lib(1)")}
+%if %{?scl:1}0 
+#ugly but we want python parts to be within collection paths
+%define python_sitearch %{?_scl_root}/usr/%{_lib}/python2.7/site-packages
 %else
-%{!?python_sitearch: %define python_sitearch %(%{__python} -c "from distutils.sysconfig import get_python_lib; print get_python_lib(1)")}
+%define python_sitearch %(/usr/bin/python -c "from distutils.sysconfig import get_python_lib; print get_python_lib(1)")
 %endif
 %define swigdirs swig_pydir=%{python_sitearch}/libsvn swig_pydir_extra=%{python_sitearch}/svn
 
@@ -52,11 +52,11 @@
 # needed on rhel6 scl-utils 20120927-23, plus filter out libs.
 %{?scl:
 %if 0%{?rhel} >= 7 || 0%{?fedora} >= 19
-%filter_from_provides s|pkgconfig|%{?scl_prefix}pkgconfig|g;s|libsvn.*\.so.*||g;s|mod_.*||g;s|perl.*||g;s|libtool.*||g;s|.*org\.apache\.subversion\.javahl.*||g;
+%filter_from_provides s|pkgconfig|%{?scl_prefix}pkgconfig|g;s|libsvn.*\.so.*||g;s|mod_.*||g;s|perl.*||g;s|libtool.*||g;s|.*org\.apache\.subversion\.javahl.*||g;s|.*\.*\.so.*||g;
 %filter_from_requires s|pkgconfig|%{?scl_prefix}pkgconfig|g;s|libsvn.*\.so.*||g;s|mod_.*||g;s|perl.*||g;s|libtool.*||g;s|.*org\.apache\.subversion\.javahl.*||g;
 %else
-%filter_from_provides s|pkgconfig|%{?scl_prefix}pkgconfig|g;s|libsvn.*\.so.*||g;s|mod_.*||g;s|perl.*||g;s|libruby.*\.so.*||g;s|libtool.*||g;s|.*org\.apache\.subversion\.javahl.*||g;
-%filter_from_requires s|pkgconfig|%{?scl_prefix}pkgconfig|g;s|libsvn.*\.so.*||g;s|mod_.*||g;s|perl.*||g;s|libruby.*\.so.*||g;s|libtool.*||g;s|.*org\.apache\.subversion\.javahl.*||g;
+%filter_from_provides s|pkgconfig|%{?scl_prefix}pkgconfig|g;s|libsvn.*\.so.*||g;s|mod_.*||g;s|perl.*||g;s|libruby.*\.so.*||g;s|libtool.*||g;s|.*org\.apache\.subversion\.javahl.*||g;s|.*\.*\.so.*||g;
+%filter_from_requires s|pkgconfig|%{?scl_prefix}pkgconfig|g;s|libsvn.*\.so.*||g;s|mod_.*||g;s|perl.*||g;s|libruby.*\.so.*||g;s|libtool.*||g;s|.*org\.apache\.subversion\.javahl.*||g;s|python.*abi.*||g;
 %endif
 %filter_setup
 }
@@ -90,6 +90,7 @@ Patch10: subversion-1.8.13-swigpython.patch
 Patch11: subversion-1.8.11-ruby22-fixes.rb
 BuildRequires: autoconf, libtool, texinfo, which
 BuildRequires: perl
+BuildRequires: gcc-c++
 %if 0%{?rhel} >= 7 || 0%{?fedora} >= 19
 BuildRequires: libdb-devel >= 4.1.25
 BuildRequires: python-devel
@@ -158,8 +159,11 @@ used by the Subversion version control tools.
 Group: Development/Libraries
 Summary: Python bindings for Subversion Version Control system
 %if %{?scl:1}0 && 0%{?rhel} < 7 
-Requires: python27-python 
+Requires: python27-python
+%else
+Requires: python
 %endif
+Requires: %{?scl_prefix}subversion-libs%{?_isa} = %{version}-%{release}
 
 %description python
 The subversion-python package includes the Python bindings to the
@@ -170,6 +174,7 @@ Group: Development/Tools
 Summary: Development package for the Subversion libraries
 Requires: %{?scl_prefix}subversion%{?_isa} = %{version}-%{release}
 Requires: apr-devel%{?_isa}, apr-util-devel%{?_isa}
+Requires: %{?scl_prefix}subversion-libs%{?_isa} = %{version}-%{release}
 
 %description devel
 The subversion-devel package includes the libraries and include files
@@ -185,6 +190,7 @@ BuildRequires: libgnome-keyring-devel
 BuildRequires: gnome-keyring-devel
 %endif
 BuildRequires: dbus-devel
+Requires: %{?scl_prefix}subversion-libs%{?_isa} = %{version}-%{release}
 
 %description gnome
 The subversion-gnome package adds support for storing Subversion
@@ -196,6 +202,7 @@ Group: Development/Tools
 Summary: KDE Wallet support for Subversion
 Requires: %{?scl_prefix}subversion%{?_isa} = %{version}-%{release}
 BuildRequires: kdelibs-devel >= 4.0.0
+Requires: %{?scl_prefix}subversion-libs%{?_isa} = %{version}-%{release}
 
 %description kde
 The subversion-kde package adds support for storing Subversion
@@ -228,6 +235,7 @@ BuildRequires: perl-devel >= 2:5.8.0, perl(ExtUtils::MakeMaker)
 BuildRequires: perl(Test::More), perl(ExtUtils::Embed)
 Requires: %(eval `perl -V:version`; echo "perl(:MODULE_COMPAT_$version)")
 Requires: %{?scl_prefix}subversion%{?_isa} = %{version}-%{release}
+Requires: %{?scl_prefix}subversion-libs%{?_isa} = %{version}-%{release}
 
 %description perl
 This package includes the Perl bindings to the Subversion libraries.
@@ -242,6 +250,7 @@ BuildRequires: java-devel-openjdk
 BuildRequires: zip, unzip
 # For the tests
 BuildRequires: junit
+Requires: %{?scl_prefix}subversion-libs%{?_isa} = %{version}-%{release}
 
 %description javahl
 This package includes the JNI bindings to the Subversion libraries.
@@ -259,8 +268,10 @@ Requires: ruby200-ruby-libs >= 2.0.0
 BuildRequires: ruby-devel >= 1.9.1, ruby >= 1.9.1
 BuildRequires: rubygem(test-unit)
 Conflicts: ruby-libs%{?_isa} < 1.8.2
+Requires: ruby-libs
 %endif
 Requires: %{?scl_prefix}subversion%{?_isa} = %{version}-%{release}
+Requires: %{?scl_prefix}subversion-libs%{?_isa} = %{version}-%{release}
 
 %description ruby
 This package includes the Ruby bindings to the Subversion libraries.
@@ -269,6 +280,7 @@ This package includes the Ruby bindings to the Subversion libraries.
 Group: Development/Tools
 Summary: Supplementary tools for Subversion
 Requires: subversion%{?_isa} = %{version}-%{release}
+Requires: %{?scl_prefix}subversion-libs%{?_isa} = %{version}-%{release}
 
 %description tools
 This package includes supplementary tools for use with Subversion.
@@ -352,8 +364,6 @@ export PERL_MM_OPT=""
         --with-swig \
 %if 0%{?rhel} >= 7 || 0%{?fedora} >= 19
 	--with-serf=%{svn_prefix} \
-#%else
-#        --enable-sqlite-compatibility-version=3.6.20 \
 %endif
         --with-ruby-sitedir=%{ruby_vendorarchdir} \
         --with-ruby-test-verbose=verbose \
@@ -634,15 +644,8 @@ fi
 %exclude %{_libdir}/libsvn_auth_gnome*
 
 %files python
-%if %{?scl:1}0 && 0%{?rhel} < 7
-# on 6 we put in python27 root
 %{python_sitearch}/svn
 %{python_sitearch}/libsvn
-%else
-# on 7 we do not want to put these in system path ..
-%{?_scl_root}%{python_sitearch}/svn
-%{?_scl_root}%{python_sitearch}/libsvn
-%endif
 
 %files gnome
 %{_libdir}/libsvn_auth_gnome_keyring-*.so.*

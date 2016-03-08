@@ -86,13 +86,23 @@ help2man -N --section 7 ./h2m_helper -o %{scl_name}.7
 %install
 rm -rf %{buildroot}
 mkdir -p %{buildroot}%{_scl_scripts}/root
+
+%if 0%{?rhel} < 7
+%define ver_python 2.6
+%else
+%define ver_python 2.7
+%endif
+
 cat >> %{buildroot}%{_scl_scripts}/enable << EOF
 export PATH=%{_bindir}\${PATH:+:\${PATH}}
 export LIBRARY_PATH=%{_libdir}\${LIBRARY_PATH:+:\${LIBRARY_PATH}}
 export LD_LIBRARY_PATH=%{_libdir}\${LD_LIBRARY_PATH:+:\${LD_LIBRARY_PATH}}
 export PKG_CONFIG_PATH=%{_libdir}/pkgconfig\${PKG_CONFIG_PATH:+:\${PKG_CONFIG_PATH}}
 export MANPATH=%{_mandir}:\${MANPATH}
+export RUBYLIB=%{_libdir}/subversion/vendor_ruby\${RUBYLIB:+:\${RUBYLIB}}
+export PYTHONPATH=%{_libdir}/python%{ver_python}/site-packages\${PYTHONPATH:+:\${PYTHONPATH}}
 EOF
+
 
 # install generated man page
 install -d -m 755               %{buildroot}%{_mandir}/man7
